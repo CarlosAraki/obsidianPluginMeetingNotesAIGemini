@@ -5,6 +5,10 @@ An Obsidian plugin that automatically generates structured meeting minutes and "
 
 It transforms raw audio files directly within your vault into professional Markdown documentation, capable of identifying action items, technical decisions, and metadata based on the audio context.
 
+## Demonstration
+
+https://github.com/user-attachments/assets/3ecb541f-dca9-4707-8915-b9d9c8be1dce
+
 ## ✨ Features
 
   * **Audio to Text:** Transcribes and summarizes `.m4a` files embedded in your notes.
