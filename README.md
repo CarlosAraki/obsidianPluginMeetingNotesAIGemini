@@ -1,94 +1,78 @@
-# Obsidian Sample Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+# Gemini Meeting Minutes Generator
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+An Obsidian plugin that automatically generates structured meeting minutes and "post-mortem" reports from audio recordings (`.m4a`) using Google's Gemini 2.5 Flash API.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+It transforms raw audio files directly within your vault into professional Markdown documentation, capable of identifying action items, technical decisions, and metadata based on the audio context.
 
-## First time developing plugins?
+## ✨ Features
 
-Quick starting guide for new plugin devs:
+  * **Audio to Text:** Transcribes and summarizes `.m4a` files embedded in your notes.
+  * **Context Aware:** Automatically extracts the recording date from standard filenames (e.g., `Recording 20230517...`) to populate metadata.
+  * **Dual Modes:**
+      * **Technical/Operational:** Focuses on systems, infrastructure, and tactical action items. Ideal for dailies and engineering calls.
+      * **Formal/Executive:** Uses formal language suitable for board meetings, councils, and official minutes.
+  * **Smart Tagging:** Automatically categorizes content (e.g., `#systems`, `#infra`, `#call`) based on the discussion.
+  * **Action Items Extraction:** Detects future meetings and creates tasks with dates (e.g., `- [ ] 🛫 2023-12-01`).
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## ⚠️ Requirements
 
-## Releasing new releases
+  * **Google Gemini API Key:** You need a valid API key from [Google AI Studio](https://aistudio.google.com/).
+  * **Audio Format:** Currently supports `.m4a` files (standard iOS/macOS voice memo format).
+  * **Internet Connection:** Required to send audio data to the Gemini API.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+## 🚀 Installation
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### From Community Plugins (Pending)
 
-## Adding your plugin to the community plugin list
+*Once approved, you can install this plugin via the Obsidian Community Plugins list.*
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+### Manual Installation
 
-## How to use
+1.  Download the `main.js`, `manifest.json`, and `styles.css` files from the latest Release.
+2.  Create a folder named `gemini-meeting-minutes` inside your vault's plugin folder: `<VaultFolder>/.obsidian/plugins/`.
+3.  Move the downloaded files into that folder.
+4.  Reload Obsidian and enable the plugin in settings.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+## ⚙️ Configuration
 
-## Manually installing the plugin
+1.  Go to **Settings** \> **Gemini Meeting AI**.
+2.  **Gemini API Key:** Paste your API key here.
+3.  **System Prompt:** You can customize the default prompt used to instruct the AI.
+4.  **Report Type:** Choose between "Technical" or "Formal" depending on your needs.
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+## 📖 How to Use
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint ./src/`
+1.  **Drag and drop** an `.m4a` audio file into an Obsidian note.
+      * *Tip:* Ensure the link looks like `![[Recording 20230517092121.m4a]]` or `[[Recording 20230517092121.m4a]]`.
+2.  **Click the Ribbon Icon** (Microphone 🎙️) on the left sidebar.
+      * *Alternative:* Open the Command Palette (`Ctrl/Cmd + P`) and search for **"Gerar Relatório de Reunião"**.
+3.  Wait for the notification "Processando áudio...".
+4.  Once finished, the content of your note will be replaced by the structured report.
 
-## Funding URL
+### Date Extraction
 
-You can include funding URLs where people who use your plugin can financially support it.
+To ensure the **"Estimated Date"** metadata is accurate, keep your audio filenames in the standard format: `Recording YYYYMMDDHHMMSS.m4a`. The plugin reads this filename to inject the exact date into the AI context.
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+## 🔒 Privacy & Security Policy
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
+This plugin makes network requests to **Google's Generative Language API** (Gemini).
 
-If you have multiple URLs, you can also do:
+  * **Data Transmission:** When you execute the command, the audio file referenced in your active note is converted to Base64 and sent directly to Google's servers for processing.
+  * **Data Storage:** This plugin **does not** store your audio or the generated text on any intermediate server. The data goes directly from your Obsidian app to Google.
+  * **Third-Party Terms:** By using this plugin, you are subject to [Google's Generative AI Terms of Service](https://policies.google.com/terms/generative-ai). Please ensure you do not upload sensitive or confidential audio if it violates your organization's data policies regarding public AI models.
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+## 🤝 Contributing
 
-## API Documentation
+Contributions are welcome\! Please feel free to submit a Pull Request or open an Issue for bugs and feature requests.
 
-See https://github.com/obsidianmd/obsidian-api
+## 📄 License
+
+MIT License. See [LICENSE](https://www.google.com/search?q=LICENSE) for more details.
+
+-----
+
+### Disclaimer
+
+This plugin is not affiliated with or endorsed by Google. "Gemini" is a trademark of Google LLC.
+

@@ -14,11 +14,13 @@ import {
 // Interface de configurações
 interface MyPluginSettings {
 	geminiApiKey: string;
-	promptMeeting: string;
+	selectedPrompt: 'technical' | 'formal'; // Novo seletor
+	promptTechnical: string; // Antigo promptMeeting
+	promptFormal: string;    // Novo prompt
 }
 
-// Prompt Padrão (Conforme solicitado)
-const PROMPTDEFAULT = `
+// 1. Prompt TÉCNICO 
+const PROMPT_TECHNICAL = `
 # ROLE
 Atue como um Especialista em Documentação Técnica e Secretário Executivo Sênior. Seu objetivo é transformar arquivos de áudio brutos em documentação formal estruturada em Markdown.
 
@@ -78,10 +80,63 @@ Gere o output estritamente seguindo esta estrutura:
 #Tag1 #Tag2 #Tag3
 `;
 
+// 2. Prompt FORMAL (Novo: Para Diretoria/Presidência)
+
+const PROMPT_FORMAL = `
+# ROLE
+Atue como Secretário de Governança Corporativa. Seu objetivo é redigir uma **Ata de Reunião Formal, com linguagem correta, impessoal, objetiva e jurídica, adequada para registros em livros oficiais ou envio a stakeholders de alto nível.
+
+# INPUT
+Áudio de uma reunião de Diretoria, Conselho ou Presidência.
+
+# DIRETRIZES DE REDAÇÃO
+- **Tom de Voz:** Formal, impessoal e direto (ex: "O Sr. Presidente iniciou...", "O Conselho deliberou...").
+- **Não utilize:** Gírias, termos técnicos excessivamente específicos (traduza para linguagem de negócio) ou emojis.
+- **Foco:** Em decisões (deliberações), atribuições de responsabilidade e prazos estratégicos.
+
+# OUTPUT FORMAT (MARKDOWN)
+Gere o documento estritamente nesta estrutura:
+
+# ATA DE REUNIÃO [ORDINÁRIA/EXTRAORDINÁRIA]
+
+**Data:** [Inserir Data Fornecida no Contexto]
+**Início:** [Hora aprox. início] | **Término:** [Hora aprox. fim]
+**Local:** [Identificar no áudio ou "Videoconferência"]
+
+## 1. PARTICIPANTES
+* **Presidente:** [Nome se houver, ou "Ad hoc"]]
+* **Secretário:** [Nome, se houver, ou "Ad hoc"]
+* **Presentes:** [Listar nomes e cargos inferidos]
+
+## 2. PAUTA)
+(Liste sucintamente os temas principais discutidos)
+1.  [Tema A]
+2.  [Tema B]
+
+## 3. DELIBERAÇÕES E ENCAMINHAMENTOS
+
+### 3.1. [TEMA A - Título Formal]
+**Discussão:** O Sr(a). [Nome] apresentou os pontos referentes a... [Resumo executivo da discussão].
+**Decisão:** (Escolha um: O Conselho APROVOU por unanimidade / APROVOU com ressalvas / SOLICITOU revisão). Fica definido que...
+
+### 3.2. [TEMA B - Título Formal]
+**Discussão:** Foi debatido o cenário de...
+**Decisão:** Determinou-se a criação de um grupo de trabalho para...
+
+## 4. AGENDA FUTURA E PENDÊNCIAS (ACTION ITEMS)
+(Se houver agendamentos, use o formato: "- [ ] 🛫 YYYY-MM-DD: [Descrição Formal]")
+* **[Responsável]:** [Ação estratégica a realizar] (Prazo: [Data])
+
+---
+**Assinaturas:**
+(Deixe espaço para assinaturas)
+`;
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
 	geminiApiKey: '',
-	promptMeeting: PROMPTDEFAULT,
+	selectedPrompt: 'technical',
+	promptTechnical: PROMPT_TECHNICAL,
+	promptFormal: PROMPT_FORMAL
 }
 
 export default class MyPlugin extends Plugin {
@@ -90,8 +145,7 @@ export default class MyPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		// Adiciona o ícone na barra lateral
-		this.addRibbonIcon('list-music', 'Gerar Ata de Reunião (M4A)', async (evt: MouseEvent) => {
+		this.addRibbonIcon('mic', 'Gerar Ata de Reunião (M4A)', async (evt: MouseEvent) => {
 			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 			if (view) {
 				await this.processMeetingAudio(view.editor, view);
@@ -100,10 +154,9 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 
-		// Comando principal acessível via CTRL+P
 		this.addCommand({
 			id: 'generate-meeting-report',
-			name: 'Gerar Relatório de Reunião a partir de Áudio (.m4a)',
+			name: 'Gerar Relatório (Usar Prompt Selecionado)',
 			checkCallback: (checking: boolean) => {
 				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (markdownView) {
@@ -116,108 +169,87 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 
-		// Tab de configurações
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 	}
 
 	onunload() {
 	}
 
-	/**
-	 * Extrai a data do formato "Recording YYYYMMDDHHMMSS"
-	 */
 	extractDateFromFilename(filename: string): string {
-		// Regex para capturar os grupos de data e hora
 		// Exemplo: Recording 20230517092121
 		const regex = /Recording\s*(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?/;
 		const match = filename.match(regex);
 
 		if (match) {
 			const [_, year, month, day, hour, minute, second] = match;
-			// Retorna no formato legível PT-BR
-			return `${day}/${month}/${year} às ${hour}:${minute}`;
+			return `${day}/${month}/${year}`; // Para formal, data sem hora fica melhor no campo Data
 		}
 		
-		return "Data não identificada no nome do arquivo";
+		return "Data não identificada";
 	}
 
-	/**
-	 * Função principal de orquestração
-	 */
 	async processMeetingAudio(editor: Editor, view: MarkdownView) {
 		if (!this.settings.geminiApiKey) {
-			new Notice('⚠️ Erro: Chave da API Gemini não configurada nas configurações.');
+			new Notice('⚠️ Erro: Configure a API Key.');
 			return;
 		}
 
 		const fileContent = editor.getValue();
-		
-		// 1. Encontrar o arquivo de áudio no texto
 		const audioFile = this.findAudioFile(fileContent);
 		
 		if (!audioFile) {
-			new Notice('⚠️ Nenhum arquivo .m4a encontrado na nota atual.');
+			new Notice('⚠️ Nenhum arquivo .m4a encontrado.');
 			return;
 		}
 
 		try {
-			new Notice(`🎙️ Processando áudio: ${audioFile.name}... (Isso pode demorar)`);
+			new Notice(`🎙️ Processando áudio (${this.settings.selectedPrompt})...`);
 			
-			// 2. Ler o arquivo como ArrayBuffer
 			const arrayBuffer = await this.app.vault.readBinary(audioFile);
-			
-			// 3. Converter para Base64
 			const base64Audio = arrayBufferToBase64(arrayBuffer);
-
 			const estimatedDate = this.extractDateFromFilename(audioFile.basename);
 			
-			// Prompt Refinado com Contexto
+			// Seleciona o prompt com base na configuração
+			const basePrompt = this.settings.selectedPrompt === 'formal' 
+				? this.settings.promptFormal 
+				: this.settings.promptTechnical;
+
+			// Injeção de Contexto
 			const finalPrompt = `
-			${this.settings.promptMeeting}
+			${basePrompt}
 
 			---
-			CONTEXTO OBRIGATÓRIO DE METADADOS:
-			O nome do arquivo de áudio original é: "${audioFile.name}"
-			A data da gravação (extraída do arquivo) é: "${estimatedDate}"
+			CONTEXTO OBRIGATÓRIO (METADADOS DO ARQUIVO):
+			Nome do Arquivo: "${audioFile.name}"
+			Data da Gravação: "${estimatedDate}"
 			
-			INSTRUÇÃO CRÍTICA: 
-			1. No campo "Data da Gravação", use "${estimatedDate}".
-			2. Se detectar uma data futura para próxima reunião, converta para o formato ISO (YYYY-MM-DD) na linha de checkbox do Action Item.
+			INSTRUÇÃO: Utilize a data "${estimatedDate}" nos campos de data do cabeçalho.
 			`;
 
-			// 4. Enviar para Gemini
-			const report = await this.callGeminiApi(base64Audio, this.settings.promptMeeting);
+			const report = await this.callGeminiApi(base64Audio, finalPrompt);
 
-			// 5. Substituir conteúdo da nota
 			if (report) {
 				editor.setValue(report);
-				new Notice('✅ Relatório de reunião gerado com sucesso!');
+				new Notice('✅ Ata gerada com sucesso!');
 			}
 
 		} catch (error) {
 			console.error(error);
-			new Notice('❌ Erro ao processar o áudio. Verifique o console (Ctrl+Shift+I). ' + error.message	);
+			new Notice('❌ Erro ao processar.');
 		}
 	}
 
-	/**
-	 * Procura por links wikilink [[arquivo.m4a]] ou markdown embed ![[arquivo.m4a]]
-	 */
 	findAudioFile(content: string): TFile | null {
-		// Regex para encontrar ![[...m4a]] ou [[...m4a]]
 		const regex = /(?:!\[\[|\[\[)(.*\.m4a)(?:\]\])/i;
 		const match = content.match(regex);
 
 		if (match && match[1]) {
-			const fileName = match[1].split('|')[0]; // Remove alias se houver
+			const fileName = match[1].split('|')[0]; 
 			return this.app.metadataCache.getFirstLinkpathDest(fileName, '') as TFile;
 		}
 		return null;
 	}
 
-	/**
-	 * Chama a API REST do Google Gemini
-	 */
 	async callGeminiApi(base64Audio: string, prompt: string): Promise<string | null> {
 		const model = 'gemini-2.5-flash'; // Modelo rápido e multimodal
 		const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.settings.geminiApiKey}`;
@@ -228,7 +260,7 @@ export default class MyPlugin extends Plugin {
 					{ text: prompt },
 					{
 						inline_data: {
-							mime_type: "audio/mp4", // m4a geralmente é tratado como mp4 container
+							mime_type: "audio/mp4",
 							data: base64Audio
 						}
 					}
@@ -240,27 +272,23 @@ export default class MyPlugin extends Plugin {
 			const response = await requestUrl({
 				url: url,
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
 			});
 
 			if (response.status !== 200) {
-				throw new Error(`Gemini API Error: ${response.status} - ${response.text}`);
+				throw new Error(`Gemini API Error: ${response.status}`);
 			}
 
 			const data = response.json;
-			
-			// Extração segura do texto da resposta
 			if (data.candidates && data.candidates.length > 0 && data.candidates[0].content) {
 				return data.candidates[0].content.parts[0].text;
 			} else {
-				throw new Error('Formato de resposta inesperado do Gemini.');
+				throw new Error('Resposta inválida do Gemini.');
 			}
 
 		} catch (error) {
-			console.error("Erro na requisição Gemini:", error);
+			console.error("Erro API:", error);
 			throw error;
 		}
 	}
@@ -284,9 +312,7 @@ class SampleSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const {containerEl} = this;
-
 		containerEl.empty();
-
 		containerEl.createEl('h2', {text: 'Configurações Gemini Meeting AI'});
 
 		new Setting(containerEl)
@@ -300,14 +326,40 @@ class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// --- SELETOR DE MODELO ---
 		new Setting(containerEl)
-			.setName('Prompt do Sistema')
-			.setDesc('O prompt que instrui a IA sobre como formatar a ata.')
-			.addTextArea(text => text
-				.setPlaceholder('Prompt...')
-				.setValue(this.plugin.settings.promptMeeting)
+			.setName('Tipo de Ata Ativa')
+			.setDesc('Escolha qual formato será gerado ao executar o comando.')
+			.addDropdown(dropdown => dropdown
+				.addOption('technical', 'Técnica / Operacional')
+				.addOption('formal', 'Formal / Diretoria')
+				.setValue(this.plugin.settings.selectedPrompt)
 				.onChange(async (value) => {
-					this.plugin.settings.promptMeeting = value;
+					this.plugin.settings.selectedPrompt = value as 'technical' | 'formal';
+					await this.plugin.saveSettings();
+				}));
+
+		// --- PROMPT TÉCNICO ---
+		new Setting(containerEl)
+			.setName('Prompt Técnico (Operacional)')
+			.setDesc('Template para dailies e reuniões técnicas.')
+			.addTextArea(text => text
+				.setPlaceholder('Prompt técnico...')
+				.setValue(this.plugin.settings.promptTechnical)
+				.onChange(async (value) => {
+					this.plugin.settings.promptTechnical = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// --- PROMPT FORMAL (A função nova que você pediu) ---
+		new Setting(containerEl)
+			.setName('Prompt Formal (Diretoria)')
+			.setDesc('Template para atas de conselho e reuniões executivas.')
+			.addTextArea(text => text
+				.setPlaceholder('Prompt formal...')
+				.setValue(this.plugin.settings.promptFormal)
+				.onChange(async (value) => {
+					this.plugin.settings.promptFormal = value;
 					await this.plugin.saveSettings();
 				}));
 	}
