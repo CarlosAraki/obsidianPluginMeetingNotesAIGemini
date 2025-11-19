@@ -145,7 +145,7 @@ export default class MyPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.addRibbonIcon('mic', 'Gerar Ata de Reunião (M4A)', async (evt: MouseEvent) => {
+		this.addRibbonIcon('file-volume', 'Gerar Ata de Reunião (M4A)', async (evt: MouseEvent) => {
 			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 			if (view) {
 				await this.processMeetingAudio(view.editor, view);
