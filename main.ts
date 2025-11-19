@@ -25,6 +25,20 @@ Atue como um Especialista em Documentação Técnica e Secretário Executivo Sê
 # INPUT
 Você receberá um arquivo de áudio de uma reunião, daily, ou discussão técnica.
 
+# LÓGICA DE CLASSIFICAÇÃO (TAGS)
+Analise o conteúdo transcrito e aplique as tags abaixo na seção final, caso o tema seja abordado:
+1. **#sistemas**: Se houver menção a softwares de trabalho (Ex: AGHU, Biomega, API, Integrações, ERP).
+2. **#infra**: Se houver menção a infraestrutura física/lógica (Ex: PatchCord, Servidor, Cabos, Energia, Switch, Rack).
+3. **#adm**: Demandas administrativas (Ex: Processos SEI, Bens e Patrimônio, Controle Financeiro, Contratos).
+4. **#suporte**: Suporte N1 e Hardware de ponta (Ex: Chamados, Impressoras, Computadores, Monitores, Mouse).
+5. **#telefonia**: Voz e Sonorização (Ex: Protocolo SIP, Linhas analógicas, Arandelas, Microfones, PABX).
+6. **#personal**: Âmbito pessoal (Ex: Treino muscular, Leitura, Meditação, Estudos pessoais, Finanças pessoais).
+
+# REGRA ESPECIAL: PRÓXIMAS REUNIÕES (#call)
+Se no áudio for agendada ou mencionada uma **próxima reunião/encontro**:
+1. Adicione a tag **#call** na lista de tags.
+2. Identifique a data dessa futura reunião.
+3. Crie uma linha de tarefa no topo da seção "Action Items" estritamente no formato: "- [ ] 🛫 YYYY-MM-DD" (substitua pela data correta).
 # TASK
 Analise o áudio, transcreva mentalmente os pontos cruciais e gere um relatório "Post-Mortem" ou "Ata de Reunião" detalhado.
 
@@ -64,9 +78,10 @@ Gere o output estritamente seguindo esta estrutura:
 #Tag1 #Tag2 #Tag3
 `;
 
+
 const DEFAULT_SETTINGS: MyPluginSettings = {
 	geminiApiKey: '',
-	promptMeeting: PROMPTDEFAULT
+	promptMeeting: PROMPTDEFAULT,
 }
 
 export default class MyPlugin extends Plugin {
@@ -109,6 +124,24 @@ export default class MyPlugin extends Plugin {
 	}
 
 	/**
+	 * Extrai a data do formato "Recording YYYYMMDDHHMMSS"
+	 */
+	extractDateFromFilename(filename: string): string {
+		// Regex para capturar os grupos de data e hora
+		// Exemplo: Recording 20230517092121
+		const regex = /Recording\s*(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?/;
+		const match = filename.match(regex);
+
+		if (match) {
+			const [_, year, month, day, hour, minute, second] = match;
+			// Retorna no formato legível PT-BR
+			return `${day}/${month}/${year} às ${hour}:${minute}`;
+		}
+		
+		return "Data não identificada no nome do arquivo";
+	}
+
+	/**
 	 * Função principal de orquestração
 	 */
 	async processMeetingAudio(editor: Editor, view: MarkdownView) {
@@ -135,6 +168,22 @@ export default class MyPlugin extends Plugin {
 			
 			// 3. Converter para Base64
 			const base64Audio = arrayBufferToBase64(arrayBuffer);
+
+			const estimatedDate = this.extractDateFromFilename(audioFile.basename);
+			
+			// Prompt Refinado com Contexto
+			const finalPrompt = `
+			${this.settings.promptMeeting}
+
+			---
+			CONTEXTO OBRIGATÓRIO DE METADADOS:
+			O nome do arquivo de áudio original é: "${audioFile.name}"
+			A data da gravação (extraída do arquivo) é: "${estimatedDate}"
+			
+			INSTRUÇÃO CRÍTICA: 
+			1. No campo "Data da Gravação", use "${estimatedDate}".
+			2. Se detectar uma data futura para próxima reunião, converta para o formato ISO (YYYY-MM-DD) na linha de checkbox do Action Item.
+			`;
 
 			// 4. Enviar para Gemini
 			const report = await this.callGeminiApi(base64Audio, this.settings.promptMeeting);
