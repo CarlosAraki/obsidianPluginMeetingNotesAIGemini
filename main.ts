@@ -35,6 +35,7 @@ Analise o conteúdo transcrito e aplique as tags abaixo na seção final, caso o
 4. **#suporte**: Suporte N1 e Hardware de ponta (Ex: Chamados, Impressoras, Computadores, Monitores, Mouse).
 5. **#telefonia**: Voz e Sonorização (Ex: Protocolo SIP, Linhas analógicas, Arandelas, Microfones, PABX).
 6. **#personal**: Âmbito pessoal (Ex: Treino muscular, Leitura, Meditação, Estudos pessoais, Finanças pessoais).
+Depois coloque quas tags adicionais relevantes conforme o contexto técnico.
 
 # REGRA ESPECIAL: PRÓXIMAS REUNIÕES (#call)
 Se no áudio for agendada ou mencionada uma **próxima reunião/encontro**:
@@ -90,7 +91,6 @@ Atue como Secretário de Governança Corporativa. Seu objetivo é redigir uma **
 Áudio de uma reunião de Diretoria, Conselho ou Presidência.
 
 # DIRETRIZES DE REDAÇÃO
-- **Tom de Voz:** Formal, impessoal e direto (ex: "O Sr. Presidente iniciou...", "O Conselho deliberou...").
 - **Não utilize:** Gírias, termos técnicos excessivamente específicos (traduza para linguagem de negócio) ou emojis.
 - **Foco:** Em decisões (deliberações), atribuições de responsabilidade e prazos estratégicos.
 
@@ -104,8 +104,6 @@ Gere o documento estritamente nesta estrutura:
 **Local:** [Identificar no áudio ou "Videoconferência"]
 
 ## 1. PARTICIPANTES
-* **Presidente:** [Nome se houver, ou "Ad hoc"]]
-* **Secretário:** [Nome, se houver, ou "Ad hoc"]
 * **Presentes:** [Listar nomes e cargos inferidos]
 
 ## 2. PAUTA)
@@ -116,8 +114,8 @@ Gere o documento estritamente nesta estrutura:
 ## 3. DELIBERAÇÕES E ENCAMINHAMENTOS
 
 ### 3.1. [TEMA A - Título Formal]
-**Discussão:** O Sr(a). [Nome] apresentou os pontos referentes a... [Resumo executivo da discussão].
-**Decisão:** (Escolha um: O Conselho APROVOU por unanimidade / APROVOU com ressalvas / SOLICITOU revisão). Fica definido que...
+**Discussão:** [Resumo executivo da discussão].
+**Decisão:**  Fica definido que...
 
 ### 3.2. [TEMA B - Título Formal]
 **Discussão:** Foi debatido o cenário de...
